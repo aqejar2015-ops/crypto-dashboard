@@ -1,0 +1,258 @@
+const symbolInput = document.querySelector('#symbolInput');
+const analyzeBtn = document.querySelector('#analyzeBtn');
+const symbolLabel = document.querySelector('#symbolLabel');
+const lastPrice = document.querySelector('#lastPrice');
+const dailyChange = document.querySelector('#dailyChange');
+const directionBadge = document.querySelector('#directionBadge');
+const confidenceScore = document.querySelector('#confidenceScore');
+const trendText = document.querySelector('#trendText');
+const supportLevel = document.querySelector('#supportLevel');
+const resistanceLevel = document.querySelector('#resistanceLevel');
+const indicatorList = document.querySelector('#indicatorList');
+const summaryText = document.querySelector('#summaryText');
+const forecastText = document.querySelector('#forecastText');
+
+const defaultSymbol = 'BTCUSDT';
+
+function formatPrice(value) {
+  if (!Number.isFinite(value)) return '--';
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: value < 1 ? 4 : 2,
+    maximumFractionDigits: value < 1 ? 6 : 2,
+  }).format(value);
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return '--';
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function round(value, digits = 4) {
+  return Number(value.toFixed(digits));
+}
+
+function sma(values, period) {
+  if (!values.length) return 0;
+  const slice = values.slice(-period);
+  const total = slice.reduce((sum, value) => sum + value, 0);
+  return total / slice.length;
+}
+
+function ema(values, period) {
+  if (!values.length) return 0;
+  const k = 2 / (period + 1);
+  let previous = values[0];
+  const sequence = values.map((value, index) => {
+    if (index === 0) return value;
+    previous = value * k + previous * (1 - k);
+    return previous;
+  });
+  return sequence.at(-1) ?? values.at(-1);
+}
+
+function rsi(values, period = 14) {
+  if (values.length <= period) return 50;
+
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = values.length - period; i < values.length; i++) {
+    const delta = values[i] - values[i - 1];
+    if (delta >= 0) gains += delta;
+    else losses += Math.abs(delta);
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+function macd(values, fast = 12, slow = 26, signal = 9) {
+  const fastEMA = ema(values, fast);
+  const slowEMA = ema(values, slow);
+  const macdValue = fastEMA - slowEMA;
+
+  const signalLine = ema([...values].slice(-signal), signal);
+  const histogram = macdValue - signalLine;
+  return { macdValue, signalLine, histogram };
+}
+
+function atr(highs, lows, closes, period = 14) {
+  const trs = [];
+  for (let i = 1; i < closes.length; i++) {
+    const high = highs[i];
+    const low = lows[i];
+    const prevClose = closes[i - 1];
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+    trs.push(tr);
+  }
+  if (!trs.length) return 0;
+  return sma(trs, Math.min(period, trs.length));
+}
+
+function getDynamicDirection(score) {
+  if (score >= 70) return 'Bullish';
+  if (score <= 30) return 'Bearish';
+  return 'Neutral';
+}
+
+function buildIndicatorRows(data) {
+  const rows = [
+    { label: 'EMA 7/21', value: data.emaShort > data.emaMedium ? 'Bullish crossover' : 'Bearish crossover' },
+    { label: 'RSI (14)', value: `${data.rsi.toFixed(1)} / ${data.rsi >= 60 ? 'Momentum bullish' : data.rsi <= 40 ? 'Momentum bearish' : 'Balanced'}` },
+    { label: 'MACD', value: data.macd.histogram >= 0 ? 'Positive divergence' : 'Negative divergence' },
+    { label: 'Volume', value: data.volumeRatio > 1 ? 'Above average volume' : 'Below average volume' },
+    { label: 'Support/Resistance', value: `Support ${formatPrice(data.support)} • Resistance ${formatPrice(data.resistance)}` },
+    { label: 'ATR', value: `${formatPrice(data.atr)} volatility` },
+  ];
+
+  indicatorList.innerHTML = rows
+    .map(
+      (row) => `
+        <li>
+          <span>${row.label}</span>
+          <strong>${row.value}</strong>
+        </li>
+      `
+    )
+    .join('');
+}
+
+function setDirectionUI(direction, score) {
+  directionBadge.textContent = direction;
+  directionBadge.className = `signal ${direction.toLowerCase()}`;
+  confidenceScore.textContent = `${Math.round(score)}%`;
+}
+
+async function analyzeSymbol(symbol) {
+  const cleaned = symbol.trim().toUpperCase();
+  if (!cleaned) return;
+
+  symbolLabel.textContent = cleaned;
+
+  try {
+    const [ticker, klines] = await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${cleaned}`),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${cleaned}&interval=1m&limit=200`),
+    ]);
+
+    if (!ticker.ok || !klines.ok) {
+      throw new Error('Unable to fetch market data. Please use a valid trading pair like BTCUSDT or ETHUSDT.');
+    }
+
+    const tickerData = await ticker.json();
+    const candleData = await klines.json();
+
+    const closes = candleData.map((candle) => Number(candle[4]));
+    const highs = candleData.map((candle) => Number(candle[2]));
+    const lows = candleData.map((candle) => Number(candle[3]));
+    const volumes = candleData.map((candle) => Number(candle[5]));
+
+    const lastClose = closes.at(-1);
+    const previousClose = closes.at(-2) ?? lastClose;
+    const emaShort = ema(closes, 7);
+    const emaMedium = ema(closes, 21);
+    const emaLong = ema(closes, 50);
+    const rsiValue = rsi(closes, 14);
+    const macdData = macd(closes, 12, 26, 9);
+    const volatility = atr(highs, lows, closes, 14);
+    const support = Math.min(...lows.slice(-50));
+    const resistance = Math.max(...highs.slice(-50));
+    const volatilityRatio = (volatility / lastClose) * 100;
+    const volumeRatio = volumes.at(-1) / sma(volumes, 20);
+
+    const trendBias =
+      emaShort > emaMedium && emaMedium > emaLong
+        ? 1
+        : emaShort < emaMedium && emaMedium < emaLong
+          ? -1
+          : 0;
+
+    let score = 50;
+    score += (emaShort > emaMedium ? 18 : -18);
+    score += (emaMedium > emaLong ? 12 : -12);
+    score += (rsiValue >= 55 ? 10 : rsiValue <= 45 ? -10 : 0);
+    score += (macdData.histogram >= 0 ? 15 : -15);
+    score += (volumeRatio > 1 ? 8 : -4);
+    score += (lastClose > resistance * 0.995 ? 8 : 0);
+    score += (lastClose < support * 1.005 ? -8 : 0);
+    score += (tickerData.priceChangePercent > 0 ? 4 : -4);
+    score += (volatilityRatio < 0.8 ? 4 : -2);
+
+    score = Math.max(0, Math.min(100, score));
+
+    const direction = getDynamicDirection(score);
+    const sentiment =
+      direction === 'Bullish'
+        ? 'Buy pressure is building and short-term trend is leaning upward.'
+        : direction === 'Bearish'
+          ? 'Selling pressure is dominating and the near-term trend is negative.'
+          : 'The market is balanced and waiting for a stronger catalyst.';
+
+    const shortOutlook =
+      direction === 'Bullish'
+        ? 'Momentum suggests a continuation higher in the next few minutes if support holds.'
+        : direction === 'Bearish'
+          ? 'The setup points to a fade or continuation lower unless buyers defend the current range.'
+          : 'The pair is likely to stay in a tight range while volatility remains moderate.';
+
+    setDirectionUI(direction, score);
+    lastPrice.textContent = formatPrice(lastClose);
+    dailyChange.textContent = formatPercent(Number(tickerData.priceChangePercent || 0));
+    dailyChange.style.color = Number(tickerData.priceChangePercent || 0) >= 0 ? '#23d18b' : '#ff6b6b';
+    trendText.textContent = trendBias > 0 ? 'Uptrend' : trendBias < 0 ? 'Downtrend' : 'Sideways';
+    supportLevel.textContent = formatPrice(support);
+    resistanceLevel.textContent = formatPrice(resistance);
+
+    const outputData = {
+      emaShort,
+      emaMedium,
+      rsi: rsiValue,
+      macd: macdData,
+      volumeRatio,
+      support,
+      resistance,
+      atr: volatility,
+    };
+
+    buildIndicatorRows(outputData);
+    summaryText.textContent = `${sentiment} ${shortOutlook}`;
+    forecastText.textContent = `${direction} • ${Math.round(score)}% confidence`;
+
+    if (direction === 'Bullish') {
+      forecastText.style.color = '#23d18b';
+    } else if (direction === 'Bearish') {
+      forecastText.style.color = '#ff6b6b';
+    } else {
+      forecastText.style.color = '#f4c95d';
+    }
+  } catch (error) {
+    lastPrice.textContent = '--';
+    dailyChange.textContent = '--';
+    confidenceScore.textContent = '--';
+    trendText.textContent = '--';
+    supportLevel.textContent = '--';
+    resistanceLevel.textContent = '--';
+    directionBadge.textContent = 'Error';
+    directionBadge.className = 'signal neutral';
+    summaryText.textContent = error.message;
+    forecastText.textContent = 'Check the symbol and retry';
+    indicatorList.innerHTML = '<li><span>Market data</span><strong>Unavailable</strong></li>';
+  }
+}
+
+analyzeBtn.addEventListener('click', () => {
+  analyzeSymbol(symbolInput.value || defaultSymbol);
+});
+
+symbolInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    analyzeSymbol(symbolInput.value || defaultSymbol);
+  }
+});
+
+analyzeSymbol(defaultSymbol);
