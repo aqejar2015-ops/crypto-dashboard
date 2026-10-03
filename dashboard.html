@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحليل العملات الرقمية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #08111f;
+            --card: #111d32;
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #eaf2ff;
+            --muted: #a8b7d0;
+            --primary: #4cc9f0;
+            --green: #23d18b;
+            --red: #ff6b6b;
+            --amber: #f4c95d;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(145deg, #08111f 0%, #0a162d 35%, #091220 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .header p {
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            font-size: 1rem;
+            font-family: 'Cairo', sans-serif;
+            width: 200px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), #5a7dff);
+            color: #071320;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .card {
+            background: rgba(17, 28, 46, 0.94);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .hero-card {
+            text-align: center;
+        }
+
+        .price-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .price-item {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+
+        .price-item p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .price-item h3 {
+            font-size: 1.8rem;
+            color: var(--text);
+        }
+
+        .signal-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+
+        .signal-badge.bullish {
+            background: rgba(35, 209, 139, 0.2);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+
+        .signal-badge.bearish {
+            background: rgba(255, 107, 107, 0.2);
+            color: var(--red);
+            border: 1px solid var(--red);
+        }
+
+        .signal-badge.neutral {
+            background: rgba(244, 201, 93, 0.2);
+            color: var(--amber);
+            border: 1px solid var(--amber);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .indicator-item {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .indicator-item p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .indicator-item h4 {
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+
+        .analysis-list {
+            list-style: none;
+        }
+
+        .analysis-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .analysis-list li:last-child {
+            border-bottom: none;
+        }
+
+        .analysis-list span {
+            color: var(--muted);
+        }
+
+        .analysis-list strong {
+            color: var(--text);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+        }
+
+        .error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: rgba(35, 209, 139, 0.1);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .search-section {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            input[type="text"] {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .price-display {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 لوحة تحليل العملات الرقمية</h1>
+            <p>ادخل رمز العملة واحصل على التحليل الفني الفوري</p>
+        </div>
+
+        <div class="search-section">
+            <input type="text" id="symbolInput" value="BTCUSDT" placeholder="مثال: BTCUSDT, ETHUSDT">
+            <button onclick="analyzeSymbol()">تحليل الآن</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const symbolInput = document.getElementById('symbolInput');
+        const resultDiv = document.getElementById('result');
+
+        function formatPrice(value) {
+            if (!Number.isFinite(value)) return '--';
+            return new Intl.NumberFormat('ar-EG', {
+                minimumFractionDigits: value < 1 ? 4 : 2,
+                maximumFractionDigits: value < 1 ? 6 : 2,
+            }).format(value);
+        }
+
+        function formatPercent(value) {
+            if (!Number.isFinite(value)) return '--';
+            const sign = value >= 0 ? '+' : '';
+            return `${sign}${value.toFixed(2)}%`;
+        }
+
+        function sma(values, period) {
+            if (!values.length) return 0;
+            const slice = values.slice(-period);
+            return slice.reduce((a, b) => a + b, 0) / slice.length;
+        }
+
+        function ema(values, period) {
+            if (!values.length) return 0;
+            const k = 2 / (period + 1);
+            let previous = values[0];
+            return values.reduce((_, value, index) => {
+                if (index === 0) return value;
+                previous = value * k + previous * (1 - k);
+                return previous;
+            });
+        }
+
+        function rsi(values, period = 14) {
+            if (values.length <= period) return 50;
+            let gains = 0, losses = 0;
+            for (let i = values.length - period; i < values.length; i++) {
+                const delta = values[i] - values[i - 1];
+                if (delta >= 0) gains += delta;
+                else losses += Math.abs(delta);
+            }
+            const avgGain = gains / period;
+            const avgLoss = losses / period;
+            if (avgLoss === 0) return 100;
+            const rs = avgGain / avgLoss;
+            return 100 - 100 / (1 + rs);
+        }
+
+        function macd(values) {
+            const fast = ema(values, 12);
+            const slow = ema(values, 26);
+            return fast - slow;
+        }
+
+        function getDirection(score) {
+            if (score >= 70) return { text: 'صاعد 📈', class: 'bullish' };
+            if (score <= 30) return { text: 'هابط 📉', class: 'bearish' };
+            return { text: 'محايد ➡️', class: 'neutral' };
+        }
+
+        async function analyzeSymbol() {
+            const symbol = (symbolInput.value || 'BTCUSDT').trim().toUpperCase();
+            resultDiv.innerHTML = '<div class="loading">جاري التحليل... ⏳</div>';
+
+            try {
+                const [ticker, klines] = await Promise.all([
+                    fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`),
+                    fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=200`)
+                ]);
+
+                if (!ticker.ok || !klines.ok) {
+                    throw new Error('العملة غير موجودة. جرب: BTCUSDT, ETHUSDT, SOLUSDT');
+                }
+
+                const tickerData = await ticker.json();
+                const candleData = await klines.json();
+
+                const closes = candleData.map(c => Number(c[4]));
+                const highs = candleData.map(c => Number(c[2]));
+                const lows = candleData.map(c => Number(c[3]));
+                const volumes = candleData.map(c => Number(c[7]));
+
+                const lastPrice = closes[closes.length - 1];
+                const ema7 = ema(closes, 7);
+                const ema21 = ema(closes, 21);
+                const ema50 = ema(closes, 50);
+                const rsiValue = rsi(closes);
+                const macdValue = macd(closes);
+                const support = Math.min(...lows.slice(-50));
+                const resistance = Math.max(...highs.slice(-50));
+                const volumeAvg = sma(volumes, 20);
+                const volumeRatio = volumes[volumes.length - 1] / volumeAvg;
+
+                let score = 50;
+                score += (ema7 > ema21 ? 20 : -20);
+                score += (ema21 > ema50 ? 15 : -15);
+                score += (rsiValue >= 55 ? 10 : rsiValue <= 45 ? -10 : 0);
+                score += (macdValue >= 0 ? 15 : -15);
+                score += (volumeRatio > 1 ? 8 : -4);
+                score += (lastPrice > resistance * 0.995 ? 8 : 0);
+                score += (lastPrice < support * 1.005 ? -8 : 0);
+                score += (tickerData.priceChangePercent > 0 ? 4 : -4);
+
+                score = Math.max(0, Math.min(100, score));
+                const direction = getDirection(score);
+                const priceChange = Number(tickerData.priceChangePercent || 0);
+                const changeColor = priceChange >= 0 ? '#23d18b' : '#ff6b6b';
+
+                const trendText = ema7 > ema21 && ema21 > ema50 ? 'اتجاه صاعد قوي' :
+                                ema7 < ema21 && ema21 < ema50 ? 'اتجاه هابط قوي' :
+                                'حركة جانبية';
+
+                const summary = direction.class === 'bullish' ?
+                    '✅ الزخم الشرائي قوي والمؤشرات تشير للصعود' :
+                    direction.class === 'bearish' ?
+                    '⚠️ ضغط بيعي واضح والاتجاه نحو الهبوط' :
+                    '⚡ السوق متوازن بحاجة لمحفز قوي';
+
+                resultDiv.innerHTML = `
+                    <div class="card hero-card">
+                        <h2>${symbol}</h2>
+                        <div class="price-display">
+                            <div class="price-item">
+                                <p>السعر الحالي</p>
+                                <h3>${formatPrice(lastPrice)}</h3>
+                            </div>
+                            <div class="price-item">
+                                <p>التغير 24 ساعة</p>
+                                <h3 style="color: ${changeColor}">${formatPercent(priceChange)}</h3>
+                            </div>
+                            <div class="price-item">
+                                <p>الاتجاه المتوقع</p>
+                                <h3>${trendText}</h3>
+                            </div>
+                        </div>
+                        <div class="signal-badge ${direction.class}">
+                            ${direction.text}
+                        </div>
+                        <h3>درجة الثقة: ${Math.round(score)}%</h3>
+                    </div>
+
+                    <div class="card">
+                        <h3>📊 التحليل الفني</h3>
+                        <ul class="analysis-list">
+                            <li>
+                                <span>EMA 7 / 21 / 50:</span>
+                                <strong>${ema7.toFixed(0)} / ${ema21.toFixed(0)} / ${ema50.toFixed(0)}</strong>
+                            </li>
+                            <li>
+                                <span>مؤشر RSI:</span>
+                                <strong>${rsiValue.toFixed(1)} ${rsiValue >= 70 ? '(شراء مفرط)' : rsiValue <= 30 ? '(بيع مفرط)' : '(متوازن)'}</strong>
+                            </li>
+                            <li>
+                                <span>مؤشر MACD:</span>
+                                <strong>${macdValue.toFixed(6)} ${macdValue >= 0 ? '✅ إيجابي' : '❌ سلبي'}</strong>
+                            </li>
+                            <li>
+                                <span>الحجم:</span>
+                                <strong>${volumeRatio.toFixed(2)}x المتوسط ${volumeRatio > 1 ? '📈' : '📉'}</strong>
+                            </li>
+                            <li>
+                                <span>الدعم:</span>
+                                <strong>${formatPrice(support)}</strong>
+                            </li>
+                            <li>
+                                <span>المقاومة:</span>
+                                <strong>${formatPrice(resistance)}</strong>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>💡 الملخص</h3>
+                        <p style="margin: 15px 0; line-height: 1.8; color: #a8b7d0;">
+                            ${summary}
+                        </p>
+                        <div class="success">
+                            <strong>التوقع:</strong> خلال الدقائق القادمة، العملة متجهة ${direction.text} بثقة ${Math.round(score)}%
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ خطأ: ${error.message}</div>`;
+            }
+        }
+
+        symbolInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') analyzeSymbol();
+        });
+
+        analyzeSymbol();
+    </script>
+</body>
+</html>
